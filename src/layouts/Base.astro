@@ -1,0 +1,98 @@
+---
+import '@fontsource-variable/plus-jakarta-sans/wght.css';
+import '@fontsource-variable/bricolage-grotesque/wght.css';
+import '../styles/globals.css';
+import '../styles/logo-type.css';
+import '../styles/input-hit.css';
+import { localeMeta } from '../../lib/i18n.js';
+import { DEFAULT_OG_IMAGE, OG_IMAGE_PATH } from '../../lib/seo.js';
+
+const {
+  locale = 'en',
+  title,
+  description,
+  keywords = [],
+  canonical = '/',
+  ogTitle = title,
+  ogDescription = description,
+  twitterTitle = title,
+  twitterDescription = description,
+  image = OG_IMAGE_PATH,
+  imageAlt = DEFAULT_OG_IMAGE.alt,
+  imageWidth = DEFAULT_OG_IMAGE.width,
+  imageHeight = DEFAULT_OG_IMAGE.height
+} = Astro.props;
+
+const origin = Astro.site?.href?.replace(/\/$/, '') || 'https://reelsdl.net';
+const canonicalUrl = new URL(canonical, `${origin}/`).href;
+const imageUrl = new URL(image, `${origin}/`).href;
+const { dir } = localeMeta(locale);
+const keywordList = Array.isArray(keywords) ? keywords.join(', ') : keywords;
+---
+<!doctype html>
+<html lang={locale} dir={dir}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    {keywordList ? <meta name="keywords" content={keywordList} /> : null}
+    <link rel="canonical" href={canonicalUrl} />
+    <meta name="application-name" content="ReelsDl.net" />
+    <meta name="author" content="ReelsDl.net" />
+    <meta name="creator" content="ReelsDl.net" />
+    <meta name="publisher" content="ReelsDl.net" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta name="referrer" content="origin" />
+    <meta name="theme-color" content="#faf8fc" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0e0c13" media="(prefers-color-scheme: dark)" />
+    <script is:inline>
+      (function () {
+        try {
+          var saved = localStorage.getItem('reelsdl-theme');
+          if (saved === 'light' || saved === 'dark') document.documentElement.setAttribute('data-theme', saved);
+        } catch (e) {}
+      })();
+    </script>
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="ReelsDl.net" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ReelsDl.net" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content={ogTitle} />
+    <meta property="og:description" content={ogDescription} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:alt" content={imageAlt} />
+    <meta property="og:image:width" content={imageWidth} />
+    <meta property="og:image:height" content={imageHeight} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={twitterTitle} />
+    <meta name="twitter:description" content={twitterDescription} />
+    <meta name="twitter:image" content={imageUrl} />
+    <meta name="twitter:image:alt" content={imageAlt} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
+    <link rel="icon" href="/icon-512.png" sizes="512x512" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="alternate" type="text/plain" href="/llms.txt" title="LLMs" />
+    {import.meta.env.PROD ? (
+      <>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=G-6EEDJDHHW4"></script>
+        <script is:inline>
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-6EEDJDHHW4', { anonymize_ip: true, transport_type: 'beacon' });
+        </script>
+      </>
+    ) : null}
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

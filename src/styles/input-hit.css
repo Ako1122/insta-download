@@ -1,0 +1,49 @@
+.input-wrap {
+  position: relative;
+  padding: 0;
+  border: 0;
+  align-items: stretch;
+  cursor: text;
+  box-shadow: var(--input-shadow);
+}
+
+.input-wrap::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--input-line);
+  pointer-events: none;
+}
+
+.input-wrap.is-loading::after {
+  background: linear-gradient(90deg,
+      #feda75 0%,
+      #fa7e1e 18%,
+      #d62976 42%,
+      #962fbf 68%,
+      #4f5bd5 88%,
+      #feda75 100%);
+  background-size: 240% 100%;
+  animation: ig-border-load 1.1s linear infinite;
+}
+
+.input-wrap input {
+  align-self: stretch;
+  min-height: 68px;
+  padding: 8px 12px 8px 50px;
+}
+
+.input-icon {
+  position: absolute;
+  top: 50%;
+  left: 18px;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.paste-button {
+  align-self: stretch;
+}

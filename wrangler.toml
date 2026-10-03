@@ -1,0 +1,11 @@
+# Website Worker for https://reelsdl.net (route: reelsdl.net/* and www.reelsdl.net/*).
+# API_ORIGIN is the Vercel origin the Worker proxies to. get.reelsdl.net points at Vercel directly
+# (DNS only); the Worker's x-reelsdl-host header makes Vercel serve the website instead of redirecting.
+# Never set it to reelsdl.net (the Worker would proxy to itself).
+name = "reelstash"
+main = "worker.js"
+compatibility_date = "2026-09-12"
+workers_dev = false
+
+[vars]
+API_ORIGIN = "https://get.reelsdl.net"

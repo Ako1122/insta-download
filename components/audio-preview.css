@@ -1,0 +1,15 @@
+.media-preview.is-audio {
+  aspect-ratio: unset;
+  height: auto;
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  background: var(--paper);
+}
+
+.media-preview audio {
+  position: relative;
+  z-index: 1;
+  width: calc(100% - 28px);
+  margin: 18px 14px;
+}

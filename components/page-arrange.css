@@ -1,0 +1,511 @@
+.home-copy,
+.article-copy,
+.home-feature-copy,
+.legal-copy,
+.legal-article,
+.faq-list,
+.how-guide,
+.how-steps,
+.feature-showcase,
+.copy-split,
+.copy-grid,
+.copy-stack,
+.copy-lede,
+.copy-note {
+  font-family: var(--font-sans);
+}
+
+.home-copy h2,
+.home-copy h3,
+.article-panel h2,
+.how-guide-panel h2,
+.how-guide-step h3,
+.feature-showcase h2,
+.feature-showcase h3,
+.how-steps h3,
+.copy-split h2,
+.panel h2,
+.legal-article h1,
+.legal-copy h2 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+
+.home-jump {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin: 28px 0 0;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.home-jump a {
+  display: block;
+  padding: 12px 8px;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.home-jump a:last-child {
+  border-right: 0;
+}
+
+.home-jump a:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+  text-decoration: none;
+}
+
+.copy-lede,
+.copy-note {
+  max-width: 62ch;
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.65;
+}
+
+.copy-note {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.copy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.copy-grid li {
+  margin: 0;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  margin-top: -1px;
+  margin-left: -1px;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.copy-grid-links li {
+  font-weight: 700;
+}
+
+.copy-split {
+  display: grid;
+  grid-template-columns: minmax(11em, 0.85fr) minmax(0, 1.15fr);
+  margin-top: 88px;
+  scroll-margin-top: 20px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.copy-split h2 {
+  margin: 0;
+  padding: 28px 24px;
+  border-right: 1px solid var(--line);
+  font-size: clamp(22px, 4.2vw, 30px);
+}
+
+.copy-split p {
+  margin: 0;
+  padding: 28px 24px;
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.65;
+}
+
+.how-guide {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.how-guide-step {
+  min-width: 0;
+  padding: 24px 18px 28px;
+  text-align: center;
+}
+
+.how-guide-step + .how-guide-step {
+  border-left: 1px solid var(--line);
+}
+
+.how-guide-num {
+  display: block;
+  margin-bottom: 14px;
+  color: var(--accent);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .16em;
+}
+
+.how-guide-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  margin-bottom: 14px;
+}
+
+.how-guide-visual img {
+  display: block;
+  width: 100%;
+  max-width: min(100%, 220px);
+  height: auto;
+  object-fit: contain;
+}
+
+.how-guide-visual.is-download img {
+  max-width: min(100%, 240px);
+}
+
+.how-guide-step h3 {
+  margin: 0 0 8px;
+  font-size: clamp(16px, 2.2vw, 20px);
+}
+
+.how-guide-step p {
+  max-width: 28ch;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.how-guide-step p b {
+  color: var(--text);
+}
+
+.how-guide-paste-icon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  vertical-align: -4px;
+}
+
+.how-guide-key {
+  display: inline-block;
+  margin-left: 2px;
+  padding: 1px 8px 2px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.copy-stack {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.copy-stack li {
+  margin: 0;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.copy-stack li:last-child {
+  border-bottom: 0;
+}
+
+.home-copy .copy-grid,
+.home-copy .copy-stack {
+  padding: 0;
+  list-style: none;
+}
+
+.home-copy .copy-grid li,
+.home-copy .copy-stack li {
+  margin: 0;
+}
+
+.copy-follow {
+  margin-top: 22px;
+}
+
+.feature-showcase {
+  margin-top: 48px;
+  scroll-margin-top: 20px;
+}
+
+.feature-showcase-kicker {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.feature-showcase h2 {
+  font-size: clamp(22px, 5.2vw, 34px);
+}
+
+.home-copy .feature-showcase-grid,
+.feature-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+  color: inherit;
+  font-weight: inherit;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.home-copy .feature-showcase-grid li,
+.feature-showcase-grid li {
+  min-width: 0;
+  margin: 0;
+  padding: 28px 22px 30px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.feature-showcase-grid li:nth-child(3n) {
+  border-right: 0;
+}
+
+.feature-showcase-grid li:nth-child(n + 4) {
+  border-bottom: 0;
+}
+
+.feature-showcase-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 16px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.feature-showcase-icon .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.feature-showcase h3 {
+  margin: 0 0 8px;
+  font-size: clamp(16px, 2.2vw, 20px);
+}
+
+.feature-showcase p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.feature-showcase > .feature-showcase-kicker,
+.home-copy .feature-showcase > .feature-showcase-kicker {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .home-jump {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .home-jump a:nth-child(3n) {
+    border-right: 0;
+  }
+
+  .home-jump a:nth-child(n + 4) {
+    border-top: 1px solid var(--line);
+  }
+
+  .home-jump a:last-child {
+    grid-column: auto;
+  }
+
+  .copy-split,
+  .how-guide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .copy-split h2 {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 22px 20px 16px;
+  }
+
+  .copy-split p {
+    padding: 20px;
+  }
+
+  .how-guide-step + .how-guide-step {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .copy-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .home-copy .feature-showcase-grid,
+  .feature-showcase-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .home-copy .feature-showcase-grid li,
+  .feature-showcase-grid li {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .home-copy .feature-showcase-grid li:last-child,
+  .feature-showcase-grid li:last-child {
+    border-bottom: 0;
+  }
+}
+
+.home-copy .article-panel,
+.home-copy #faq {
+  padding: 32px 28px 28px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+}
+
+.home-copy .panel,
+.home-copy .copy-split {
+  margin-top: 36px;
+}
+
+.home-copy .article-panel h2,
+.home-copy .how-guide-panel h2,
+.home-copy .copy-split h2,
+.home-copy #faq h2,
+.home-copy .feature-showcase h2 {
+  margin: 0 0 14px;
+  color: var(--text);
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 600;
+  letter-spacing: -.03em;
+  line-height: 1.15;
+}
+
+.home-copy .article-copy {
+  max-width: 68ch;
+  margin-top: 0;
+}
+
+.home-copy .article-copy p,
+.home-copy .copy-split p,
+.home-copy .faq-answer,
+.home-copy .faq-answer p,
+.home-copy .how-guide-step p,
+.home-copy .feature-showcase p {
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.7;
+}
+
+.home-copy .article-copy p:first-child {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.home-copy .article-copy b,
+.home-copy .article-copy strong,
+.home-copy .copy-split b,
+.home-copy .copy-split strong,
+.home-copy .how-guide-step p b,
+.home-copy .faq-answer b,
+.home-copy .faq-answer strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.home-copy .article-copy i {
+  color: var(--text);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.home-copy .article-copy a,
+.home-copy .copy-split a,
+.home-copy .faq-answer a,
+.home-copy .copy-grid-links a,
+.home-audio-cta a {
+  font-weight: 600;
+}
+
+.home-copy .copy-grid li,
+.home-copy .copy-stack li {
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.home-copy .feature-showcase h3,
+.home-copy .how-guide-step h3 {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+
+.home-copy .faq-list summary {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.home-audio-cta {
+  font-size: 15px;
+}
+
+@media (max-width: 720px) {
+  .home-copy .article-panel,
+  .home-copy #faq {
+    padding: 24px 20px 20px;
+  }
+}

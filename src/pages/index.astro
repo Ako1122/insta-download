@@ -1,0 +1,24 @@
+---
+import Base from '../layouts/Base.astro';
+import { AppRoot } from '../../components/AppRoot.jsx';
+import { LANG_COOKIE, localeFromAccept, localeFromValue } from '../../lib/i18n.js';
+import { homePage } from '../../lib/site.jsx';
+
+const locale = localeFromValue(Astro.cookies.get(LANG_COOKIE)?.value)
+  || localeFromAccept(Astro.request.headers.get('accept-language'))
+  || 'en';
+const meta = homePage.metadata;
+---
+<Base
+  locale={locale}
+  title={meta.title}
+  description={meta.description}
+  keywords={meta.keywords}
+  canonical={meta.alternates.canonical}
+  ogTitle={meta.openGraph.title}
+  ogDescription={meta.openGraph.description}
+  twitterTitle={meta.twitter.title}
+  twitterDescription={meta.twitter.description}
+>
+  <AppRoot client:load pageId="home" initialLocale={locale} />
+</Base>
