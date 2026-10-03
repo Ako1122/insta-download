@@ -1,6 +1,6 @@
 """
 Instagram 影片/照片下載器 - Flask 後端
-免 Cookie 版本：使用多種方法解析，使用者不需要提供任何登入資訊
+2026 最新版：使用 data-sjs 嵌入 JSON + 多重備援方法
 """
 
 import re
@@ -12,21 +12,26 @@ app = Flask(__name__)
 
 
 class InstagramDownloader:
-    """Instagram 媒體解析器（免 Cookie 版）"""
+    """Instagram 媒體解析器（2026 最新版）"""
 
     def __init__(self):
         self.session = requests.Session()
-        self.session.headers.update(
-            {
-                "User-Agent": (
-                    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
-                    "AppleWebKit/605.1.15 (KHTML, like Gecko) "
-                    "Version/17.0 Mobile/15E148 Safari/604.1"
-                ),
-                "Accept": "*/*",
-                "Accept-Language": "en-US,en;q=0.9",
-            }
-        )
+        # 模擬真實瀏覽器
+        self.browser_headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/126.0.0.0 Safari/537.36"
+            ),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Encoding": "gzip, deflate, br",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "Upgrade-Insecure-Requests": "1",
+        }
 
     def extract_shortcode(self, url: str) -> str | None:
         """從 Instagram 網址中提取 shortcode"""
@@ -41,13 +46,145 @@ class InstagramDownloader:
         return None
 
     # ============================================================
-    # 方法 1：GraphQL（不需要 Cookie 的端點）
+    # 方法 1：解析頁面中的 data-sjs JSON（2026 最新方法）
+    # ============================================================
+    def fetch_by_data_sjs(self, shortcode: str) -> dict | None:
+        """
+        2026 年 Instagram 把貼文資料藏在
+        <script type="application/json" data-sjs> 標籤裡
+        """
+        try:
+            url = f"https://www.instagram.com/p/{shortcode}/"
+            resp = self.session.get(url, headers=self.browser_headers, timeout=20)
+            html = resp.text
+
+            # 提取所有 data-sjs 的 JSON 區塊
+            sjs_blocks = re.findall(
+                r'<script\s+type="application/json"\s+data-sjs[^>]*>\s*({.+?})\s*</script>',
+                html,
+                re.DOTALL,
+            )
+
+            for block in sjs_blocks:
+                try:
+                    data = json.loads(block)
+                    # 遞迴搜尋含有 shortcode_media 或 xdt_shortcode_media 的資料
+                    media = self._deep_search(data, shortcode)
+                    if media:
+                        return self._parse_media(media)
+                except (json.JSONDecodeError, RecursionError):
+                    continue
+
+        except Exception:
+            pass
+        return None
+
+    def _deep_search(self, obj, shortcode, depth=0):
+        """遞迴搜尋 JSON 中的媒體資料"""
+        if depth > 15:
+            return None
+
+        if isinstance(obj, dict):
+            # 找到目標
+            if obj.get("shortcode") == shortcode and (
+                obj.get("video_url")
+                or obj.get("display_url")
+                or obj.get("edge_sidecar_to_children")
+            ):
+                return obj
+
+            # 檢查常見的 key
+            for key in [
+                "xdt_shortcode_media",
+                "shortcode_media",
+                "xdt_api__v1__media__shortcode__web_info",
+                "media",
+                "data",
+                "result",
+                "graphql",
+            ]:
+                if key in obj:
+                    result = self._deep_search(obj[key], shortcode, depth + 1)
+                    if result:
+                        return result
+
+            # 搜尋所有值
+            for value in obj.values():
+                if isinstance(value, (dict, list)):
+                    result = self._deep_search(value, shortcode, depth + 1)
+                    if result:
+                        return result
+
+        elif isinstance(obj, list):
+            for item in obj:
+                if isinstance(item, (dict, list)):
+                    result = self._deep_search(item, shortcode, depth + 1)
+                    if result:
+                        return result
+
+        return None
+
+    # ============================================================
+    # 方法 2：直接搜尋 HTML 中的 video_url / display_url
+    # ============================================================
+    def fetch_by_regex(self, shortcode: str) -> dict | None:
+        """用正則表達式直接從 HTML 中搜尋媒體網址"""
+        try:
+            url = f"https://www.instagram.com/p/{shortcode}/"
+            resp = self.session.get(url, headers=self.browser_headers, timeout=20)
+            html = resp.text
+
+            result = {
+                "type": "unknown",
+                "caption": "",
+                "author": "",
+                "thumbnail": "",
+                "medias": [],
+            }
+
+            # 搜尋所有 video_url
+            video_urls = re.findall(r'"video_url":"([^"]+)"', html)
+            for v_url in video_urls:
+                decoded = v_url.encode().decode("unicode_escape")
+                if decoded not in [m["url"] for m in result["medias"]]:
+                    result["medias"].append(
+                        {
+                            "type": "video",
+                            "url": decoded,
+                            "quality": "原始畫質",
+                        }
+                    )
+
+            # 如果沒有影片，搜尋 display_url（圖片）
+            if not result["medias"]:
+                image_urls = re.findall(r'"display_url":"([^"]+)"', html)
+                seen = set()
+                for i_url in image_urls:
+                    decoded = i_url.encode().decode("unicode_escape")
+                    if decoded not in seen and "cdninstagram.com" in decoded:
+                        seen.add(decoded)
+                        result["medias"].append(
+                            {
+                                "type": "image",
+                                "url": decoded,
+                                "quality": "原始畫質",
+                            }
+                        )
+
+            if result["medias"]:
+                result["type"] = result["medias"][0]["type"]
+                return result
+
+        except Exception:
+            pass
+        return None
+
+    # ============================================================
+    # 方法 3：GraphQL（備援）
     # ============================================================
     def fetch_by_graphql(self, shortcode: str) -> dict | None:
-        """使用 Instagram 公開 GraphQL 端點"""
+        """使用 GraphQL 端點"""
         url = "https://www.instagram.com/graphql/query/"
-
-        # 多個 doc_id，Instagram 會定期更換，保留多個備用
         doc_ids = [
             "8845758582119845",
             "9510064595728286",
@@ -56,15 +193,12 @@ class InstagramDownloader:
         ]
 
         headers = {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/126.0.0.0 Safari/537.36"
-            ),
+            **self.browser_headers,
             "X-IG-App-ID": "936619743392459",
             "X-Requested-With": "XMLHttpRequest",
             "Referer": "https://www.instagram.com/",
             "Origin": "https://www.instagram.com",
+            "Accept": "*/*",
         }
 
         for doc_id in doc_ids:
@@ -93,204 +227,87 @@ class InstagramDownloader:
         return None
 
     # ============================================================
-    # 方法 2：Instagram oEmbed API（完全公開，不需要 Cookie）
+    # 方法 4：使用 Instagram Embed 端點
     # ============================================================
-    def fetch_by_oembed(self, shortcode: str) -> dict | None:
-        """使用 Instagram 的 oEmbed API 取得基本資訊"""
+    def fetch_by_embed(self, shortcode: str) -> dict | None:
+        """透過 Instagram 的 embed 端點取得資料"""
         try:
-            post_url = f"https://www.instagram.com/p/{shortcode}/"
-            oembed_url = "https://api.instagram.com/oembed/"
-            params = {
-                "url": post_url,
-                "omitscript": "true",
-            }
-            resp = self.session.get(oembed_url, params=params, timeout=15)
-            if resp.status_code == 200:
-                data = resp.json()
-                # oEmbed 回傳的資料有限，但可以取得縮圖和作者
-                result = {
-                    "type": "image",
-                    "caption": data.get("title", ""),
-                    "author": data.get("author_name", ""),
-                    "thumbnail": data.get("thumbnail_url", ""),
-                    "medias": [],
-                }
-                if data.get("thumbnail_url"):
-                    result["medias"].append(
-                        {
-                            "type": "image",
-                            "url": data["thumbnail_url"],
-                            "quality": "縮圖畫質",
-                        }
-                    )
-                return result if result["medias"] else None
-        except Exception:
-            pass
-        return None
-
-    # ============================================================
-    # 方法 3：解析頁面 HTML + JSON-LD
-    # ============================================================
-    def fetch_by_page(self, shortcode: str) -> dict | None:
-        """解析 Instagram 頁面中的嵌入資料"""
-        try:
-            url = f"https://www.instagram.com/p/{shortcode}/"
+            url = f"https://www.instagram.com/p/{shortcode}/embed/"
             headers = {
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/126.0.0.0 Safari/537.36"
-                ),
-                "Accept": "text/html,application/xhtml+xml",
-                "Accept-Language": "en-US,en;q=0.9",
+                **self.browser_headers,
+                "Referer": "https://www.instagram.com/",
             }
             resp = self.session.get(url, headers=headers, timeout=15)
             html = resp.text
 
-            # 嘗試 1：從 JSON-LD 提取
-            ld_match = re.search(
-                r'<script type="application/ld\+json">\s*({.+?})\s*</script>',
-                html,
-                re.DOTALL,
-            )
-            if ld_match:
-                try:
-                    ld_data = json.loads(ld_match.group(1))
-                    if ld_data.get("video"):
-                        video_url = (
-                            ld_data["video"][0].get("contentUrl", "")
-                            if isinstance(ld_data["video"], list)
-                            else ld_data["video"].get("contentUrl", "")
-                        )
-                        if video_url:
-                            return {
-                                "type": "video",
-                                "caption": ld_data.get("articleBody", ""),
-                                "author": ld_data.get("author", {}).get("name", ""),
-                                "thumbnail": ld_data.get("thumbnailUrl", ""),
-                                "medias": [
-                                    {
-                                        "type": "video",
-                                        "url": video_url,
-                                        "quality": "原始畫質",
-                                    }
-                                ],
+            result = {
+                "type": "unknown",
+                "caption": "",
+                "author": "",
+                "thumbnail": "",
+                "medias": [],
+            }
+
+            # 從 embed 頁面提取影片
+            video_urls = re.findall(r'"video_url":"([^"]+)"', html)
+            if not video_urls:
+                video_urls = re.findall(r'<source\s+src="([^"]+)"', html)
+
+            for v_url in video_urls:
+                decoded = (
+                    v_url.encode().decode("unicode_escape") if "\\u" in v_url else v_url
+                )
+                result["medias"].append(
+                    {
+                        "type": "video",
+                        "url": decoded,
+                        "quality": "原始畫質",
+                    }
+                )
+
+            # 從 embed 頁面提取圖片
+            if not result["medias"]:
+                # 高畫質圖片
+                img_urls = re.findall(
+                    r'class="[^"]*EmbeddedMediaImage[^"]*"[^>]*src="([^"]+)"', html
+                )
+                if not img_urls:
+                    img_urls = re.findall(
+                        r'<img[^>]+src="(https://[^"]*cdninstagram\.com[^"]*)"', html
+                    )
+                seen = set()
+                for i_url in img_urls:
+                    decoded = (
+                        i_url.encode().decode("unicode_escape")
+                        if "\\u" in i_url
+                        else i_url
+                    )
+                    if decoded not in seen:
+                        seen.add(decoded)
+                        result["medias"].append(
+                            {
+                                "type": "image",
+                                "url": decoded,
+                                "quality": "原始畫質",
                             }
-                except (json.JSONDecodeError, KeyError, IndexError):
-                    pass
+                        )
 
-            # 嘗試 2：直接搜尋 video_url
-            video_match = re.search(r'"video_url":"([^"]+)"', html)
-            if video_match:
-                video_url = video_match.group(1).encode().decode("unicode_escape")
-                return {
-                    "type": "video",
-                    "caption": "",
-                    "author": "",
-                    "thumbnail": "",
-                    "medias": [
-                        {
-                            "type": "video",
-                            "url": video_url,
-                            "quality": "原始畫質",
-                        }
-                    ],
-                }
-
-            # 嘗試 3：搜尋 display_url（圖片）
-            image_match = re.search(r'"display_url":"([^"]+)"', html)
-            if image_match:
-                image_url = image_match.group(1).encode().decode("unicode_escape")
-                return {
-                    "type": "image",
-                    "caption": "",
-                    "author": "",
-                    "thumbnail": "",
-                    "medias": [
-                        {
-                            "type": "image",
-                            "url": image_url,
-                            "quality": "原始畫質",
-                        }
-                    ],
-                }
+            if result["medias"]:
+                result["type"] = result["medias"][0]["type"]
+                # 嘗試取得作者
+                author_match = re.search(r'"username":"([^"]+)"', html)
+                if author_match:
+                    result["author"] = author_match.group(1)
+                return result
 
         except Exception:
             pass
         return None
 
     # ============================================================
-    # 方法 4：使用第三方公開 API 作為備援
-    # ============================================================
-    def fetch_by_third_party(self, shortcode: str) -> dict | None:
-        """使用第三方公開 API 服務作為備援"""
-        apis = [
-            {
-                "name": "saveig",
-                "url": f"https://www.saveig.app/api/ajaxSearch",
-                "method": "POST",
-                "data": {
-                    "q": f"https://www.instagram.com/p/{shortcode}/",
-                    "lang": "en",
-                },
-            },
-        ]
-
-        for api in apis:
-            try:
-                if api["method"] == "POST":
-                    resp = self.session.post(
-                        api["url"],
-                        data=api.get("data", {}),
-                        timeout=15,
-                    )
-                else:
-                    resp = self.session.get(
-                        api["url"],
-                        params=api.get("params", {}),
-                        timeout=15,
-                    )
-
-                if resp.status_code == 200:
-                    data = (
-                        resp.json()
-                        if "json" in resp.headers.get("Content-Type", "")
-                        else {}
-                    )
-                    # 從 HTML 回應中提取下載連結
-                    html_content = data.get("data", resp.text)
-                    video_urls = re.findall(
-                        r'href="(https://[^"]*cdninstagram\.com[^"]*)"',
-                        str(html_content),
-                    )
-                    if video_urls:
-                        medias = []
-                        for i, url in enumerate(set(video_urls)):
-                            media_type = "video" if ".mp4" in url else "image"
-                            medias.append(
-                                {
-                                    "type": media_type,
-                                    "url": url,
-                                    "quality": "原始畫質",
-                                    "index": i + 1,
-                                }
-                            )
-                        return {
-                            "type": medias[0]["type"],
-                            "caption": "",
-                            "author": "",
-                            "thumbnail": "",
-                            "medias": medias,
-                        }
-            except Exception:
-                continue
-        return None
-
-    # ============================================================
-    # 解析媒體資料結構
+    # 解析 GraphQL 媒體資料結構
     # ============================================================
     def _parse_media(self, media: dict) -> dict:
-        """解析 Instagram GraphQL 媒體資料"""
         result = {
             "type": "unknown",
             "caption": "",
@@ -299,10 +316,15 @@ class InstagramDownloader:
             "medias": [],
         }
 
-        # 取得貼文資訊
         caption_edges = media.get("edge_media_to_caption", {}).get("edges", [])
         if caption_edges:
             result["caption"] = caption_edges[0].get("node", {}).get("text", "")
+
+        # caption 也可能在 caption.text
+        if not result["caption"]:
+            cap = media.get("caption", {})
+            if isinstance(cap, dict):
+                result["caption"] = cap.get("text", "")
 
         owner = media.get("owner", {})
         result["author"] = owner.get("username", "")
@@ -310,7 +332,7 @@ class InstagramDownloader:
 
         typename = media.get("__typename", "")
 
-        # 輪播貼文（多張圖片/影片）
+        # 輪播貼文
         if typename == "GraphSidecar" or media.get("edge_sidecar_to_children"):
             result["type"] = "carousel"
             edges = media.get("edge_sidecar_to_children", {}).get("edges", [])
@@ -347,7 +369,6 @@ class InstagramDownloader:
                     "quality": "原始畫質",
                 }
             )
-            # 不同畫質版本
             for v in media.get("video_versions", []):
                 result["medias"].append(
                     {
@@ -374,28 +395,31 @@ class InstagramDownloader:
     # 主要下載方法
     # ============================================================
     def download(self, url: str) -> dict:
-        """依序嘗試多種免 Cookie 解析方式"""
         shortcode = self.extract_shortcode(url)
         if not shortcode:
             return {"success": False, "error": "無效的 Instagram 網址"}
 
+        # 2026 最新解析順序
         methods = [
+            ("data-sjs 解析", self.fetch_by_data_sjs),
+            ("HTML 正則解析", self.fetch_by_regex),
+            ("Embed 頁面", self.fetch_by_embed),
             ("GraphQL API", self.fetch_by_graphql),
-            ("Page Parser", self.fetch_by_page),
-            ("oEmbed API", self.fetch_by_oembed),
-            ("Third Party", self.fetch_by_third_party),
         ]
 
         for method_name, method_func in methods:
             try:
                 result = method_func(shortcode)
                 if result and result.get("medias"):
-                    return {
-                        "success": True,
-                        "method": method_name,
-                        "shortcode": shortcode,
-                        **result,
-                    }
+                    # 過濾掉空的 url
+                    result["medias"] = [m for m in result["medias"] if m.get("url")]
+                    if result["medias"]:
+                        return {
+                            "success": True,
+                            "method": method_name,
+                            "shortcode": shortcode,
+                            **result,
+                        }
             except Exception:
                 continue
 
@@ -405,7 +429,6 @@ class InstagramDownloader:
         }
 
 
-# 建立全域下載器實例
 downloader = InstagramDownloader()
 
 
@@ -436,7 +459,7 @@ def parse_url():
 
 @app.route("/api/proxy", methods=["GET"])
 def proxy_download():
-    """代理下載（解決跨域和 Referer 問題）"""
+    """代理下載"""
     media_url = request.args.get("url", "")
     if not media_url:
         return jsonify({"error": "缺少下載網址"}), 400
@@ -451,11 +474,8 @@ def proxy_download():
                 "Referer": "https://www.instagram.com/",
             },
         )
-
-        # 根據 Content-Type 決定副檔名
         content_type = resp.headers.get("Content-Type", "application/octet-stream")
         ext = "mp4" if "video" in content_type else "jpg"
-
         headers = {
             "Content-Type": content_type,
             "Content-Disposition": f'attachment; filename="instagram_download.{ext}"',
@@ -465,14 +485,10 @@ def proxy_download():
         return jsonify({"error": str(e)}), 500
 
 
-# ============================================================
-# 啟動伺服器
-# ============================================================
-
 if __name__ == "__main__":
     import os
 
     port = int(os.environ.get("PORT", 5000))
-    print(f"🚀 Instagram 下載器已啟動（免 Cookie 版）")
+    print(f"🚀 Instagram 下載器已啟動（2026 最新版）")
     print(f"📍 http://localhost:{port}")
     app.run(debug=False, host="0.0.0.0", port=port)
