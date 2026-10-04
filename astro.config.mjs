@@ -1,3 +1,4 @@
+
 import { fileURLToPath } from 'node:url';
 import react from '@astrojs/react';
 import vercel from '@astrojs/vercel';
@@ -41,3 +42,4 @@ export default defineConfig({
     }
   }
 });
+
