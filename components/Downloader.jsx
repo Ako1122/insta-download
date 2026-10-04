@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import JSZip from 'jszip';
 import { apiUrl, withApiHost } from '@/lib/api';
 import { SITE_EMAIL } from '@/lib/seo';
 import { Icon } from './Icons';
@@ -21,6 +22,7 @@ export function Downloader({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState(null);
+  const [downloadProgress, setDownloadProgress] = useState(null);
   const resultsRef = useRef(null);
   const inputRef = useRef(null);
   const hasUrl = Boolean(url.trim());
@@ -50,10 +52,8 @@ export function Downloader({
     if (!value) return setError(copy.emptyUrl);
     if (!looksLikeInstagramUrl(value)) return setError(copy.invalidUrl);
     if (loading) return;
-
     setLoading(true);
     setResult(null);
-
     try {
       const cached = readClientPostCache(value, mode);
       const mapped = cached || await fetchResolvedPost(value, mode, copy.resolveFailed);
@@ -117,7 +117,6 @@ export function Downloader({
           <span className="hero-title">{headingText}</span>
         </h1>
         <p className="lede">{ledeText}</p>
-
         <form
           className="link-form"
           autoComplete="off"
@@ -182,7 +181,6 @@ export function Downloader({
             {t('reportIssue')}
           </a>
         </form>
-
         {error ? (
           <div className="error-message" role="alert">
             <Icon name="alert" />
@@ -195,6 +193,27 @@ export function Downloader({
         {result ? (
           <>
             <article className={media.length === 1 ? 'ig-post is-single' : 'ig-post'}>
+              {media.length > 1 ? (
+                <button
+                  className="download-button download-all"
+                  disabled={downloadProgress !== null}
+                  onClick={() => downloadAll(media, mode, setDownloadProgress)}
+                  style={{
+                    width: '100%',
+                    marginBottom: '1rem',
+                    padding: '0.75rem 1rem',
+                    fontSize: '1rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  <Icon name="download" />
+                  {downloadProgress ? (downloadProgress.current + ' / ' + downloadProgress.total + ' \u6B63\u5728\u6253\u5305...') : ('\u4E0B\u8F09\u5168\u90E8 ZIP\uFF08' + media.length + ' \u500B\u6A94\u6848\uFF09')}
+                </button>
+              ) : null}
               <PostByline result={result} fallbackTitle={summary.defaultTitle} />
               <div className={media.length === 1 ? 'media-grid is-single' : 'media-grid'}>
                 {media.map((item, index) => (
@@ -239,7 +258,6 @@ function PostByline({ result, fallbackTitle }) {
       </header>
     );
   }
-
   return (
     <header className="ig-post-head">
       <span className="ig-avatar" aria-hidden="true">{username.slice(0, 1).toUpperCase()}</span>
@@ -263,13 +281,13 @@ function postCaption(result) {
   if (result.caption) return result.caption;
   const title = String(result.title || '');
   const parts = title.split(/\s+[—–-]\s+/);
-  return parts.length > 1 ? parts.slice(1).join(' — ').replace(/…$/, '').trim() : '';
+  return parts.length > 1 ? parts.slice(1).join(' — ').replace(/\u2026$/, '').trim() : '';
 }
 
 function profileHref(result) {
   const username = postUsername(result);
   if (result.profileUrl) return result.profileUrl;
-  return username ? `https://www.instagram.com/${username}/` : 'https://www.instagram.com/';
+  return username ? 'https://www.instagram.com/' + username + '/' : 'https://www.instagram.com/';
 }
 
 function randomFileId() {
@@ -280,19 +298,19 @@ function downloadFilename(item, index, mode) {
   const itemNumber = index + 1;
   const isAudio = mode === 'audio' || item.type === 'audio';
   const kind = item.type === 'video' ? 'video' : item.type === 'audio' ? 'audio' : 'photo';
-  if (kind === 'video') return `ReelsDl.net-${randomFileId()}.mp4`;
-  if (isAudio && item.original) return `ReelsDl-audio-${itemNumber}`;
-  if (isAudio) return `ReelsDl-audio-${itemNumber}.mp3`;
-  return `ReelsDl-photo-${itemNumber}.jpg`;
+  if (kind === 'video') return 'ReelsDl.net-' + randomFileId() + '.mp4';
+  if (isAudio && item.original) return 'ReelsDl-audio-' + itemNumber;
+  if (isAudio) return 'ReelsDl-audio-' + itemNumber + '.mp3';
+  return 'ReelsDl-photo-' + itemNumber + '.jpg';
 }
 
 function MediaCard({ item, index, total, mode, t }) {
   const itemNumber = index + 1;
-  const suffix = total > 1 ? ` ${itemNumber}` : '';
+  const suffix = total > 1 ? ' ' + itemNumber : '';
   const isAudio = mode === 'audio' || item.type === 'audio';
   const isOriginalAudio = isAudio && item.original;
   const kind = item.type === 'video' ? 'video' : item.type === 'audio' ? 'audio' : 'photo';
-  const label = `${isOriginalAudio ? t('downloadAudio') : isAudio ? t('downloadMp3') : kind === 'video' ? t('downloadVideo') : t('downloadPhoto')}${suffix}`;
+  const label = (isOriginalAudio ? t('downloadAudio') : isAudio ? t('downloadMp3') : kind === 'video' ? t('downloadVideo') : t('downloadPhoto')) + suffix;
   const downloadName = useMemo(() => downloadFilename(item, index, mode), [item, index, mode]);
   const [previewFailed, setPreviewFailed] = useState(false);
   const thumb = previewFailed ? null : lightPreview(item);
@@ -300,7 +318,6 @@ function MediaCard({ item, index, total, mode, t }) {
   const apiHref = item.downloadUrl;
   const primaryUrl = cdnUrl || apiHref;
   const showApiFallback = Boolean(cdnUrl && apiHref && kind !== 'photo');
-
   return (
     <article className="media-card">
       <div className={kind === 'video' ? 'media-preview is-video' : isAudio ? 'media-preview is-audio' : 'media-preview'}>
@@ -309,7 +326,7 @@ function MediaCard({ item, index, total, mode, t }) {
             <div className="loading-shimmer" />
             <img
               src={thumb}
-              alt={isAudio ? `Instagram reel cover ${itemNumber}` : kind === 'video' ? `Instagram video cover ${itemNumber}` : `Instagram photo ${itemNumber}`}
+              alt={isAudio ? 'Instagram reel cover ' + itemNumber : kind === 'video' ? 'Instagram video cover ' + itemNumber : 'Instagram photo ' + itemNumber}
               loading={index === 0 ? 'eager' : 'lazy'}
               decoding="async"
               referrerPolicy={isApiAsset(thumb) ? 'origin' : 'no-referrer'}
@@ -351,6 +368,33 @@ function MediaCard({ item, index, total, mode, t }) {
   );
 }
 
+async function downloadAll(media, mode, setDownloadProgress) {
+  setDownloadProgress({ current: 0, total: media.length });
+  const zip = new JSZip();
+  for (let i = 0; i < media.length; i++) {
+    const item = media[i];
+    const dlUrl = item.directUrl || item.downloadUrl;
+    const name = downloadFilename(item, i, mode);
+    try {
+      const resp = await fetch(dlUrl, { referrerPolicy: item.directUrl ? 'no-referrer' : 'origin' });
+      const blob = await resp.blob();
+      zip.file(name, blob);
+    } catch (e) {
+      console.warn('Failed to fetch ' + name, e);
+    }
+    setDownloadProgress({ current: i + 1, total: media.length });
+  }
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(zipBlob);
+  a.download = 'instagram-download.zip';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  setDownloadProgress(null);
+}
+
 function isApiAsset(url) {
   return /\/api\/download(?:\?|$)/.test(url) || /(?:^|\/\/)get\.reelsdl\.net\//i.test(url);
 }
@@ -367,11 +411,11 @@ function clearShimmer(event) {
 
 function reportIssueHref(url, mode, subjectLabel) {
   const page = mode === 'audio' ? 'Audio MP3' : 'Reels Downloader';
-  const subject = `ReelsDl.net — ${subjectLabel || page}`;
+  const subject = 'ReelsDl.net --- ' + (subjectLabel || page);
   const parts = ['What went wrong:', ''];
   const trimmed = url.trim();
-  if (trimmed) parts.push(`Instagram link: ${trimmed}`, '');
-  return `mailto:${SITE_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(parts.join('\n'))}`;
+  if (trimmed) parts.push('Instagram link: ' + trimmed, '');
+  return 'mailto:' + SITE_EMAIL + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(parts.join('\n'));
 }
 
 function fetchResolvedPost(value, mode, resolveFailed) {
@@ -402,62 +446,62 @@ function fetchResolvedPost(value, mode, resolveFailed) {
   });
 }
 
-const CLIENT_CACHE_MS = 45 * 60 * 1000;
-const POST_PATH_KINDS = new Set(['p', 'reel', 'reels', 'tv']);
+var CLIENT_CACHE_MS = 45 * 60 * 1000;
+var POST_PATH_KINDS = new Set(['p', 'reel', 'reels', 'tv']);
 
 function instagramPostCacheId(value) {
   try {
-    const parsed = new URL(value.startsWith('http') ? value : `https://${value}`);
-    const parts = parsed.pathname.split('/').filter(Boolean);
+    var parsed = new URL(value.startsWith('http') ? value : 'https://' + value);
+    var parts = parsed.pathname.split('/').filter(Boolean);
     if (!parts.length) return null;
-    const first = parts[0].toLowerCase();
-    const second = (parts[1] || '').toLowerCase();
-    if (POST_PATH_KINDS.has(first) && parts[1] && second !== 'audio') return parts[1];
-    if (first === 'share' && POST_PATH_KINDS.has(second) && parts[2]) return parts[2];
-    if (POST_PATH_KINDS.has(second) && parts[2]) return parts[2];
-  } catch {
+    var first = parts.toLowerCase();
+    var second = (parts || '').toLowerCase();
+    if (POST_PATH_KINDS.has(first) && parts && second !== 'audio') return parts;
+    if (first === 'share' && POST_PATH_KINDS.has(second) && parts) return parts;
+    if (POST_PATH_KINDS.has(second) && parts) return parts;
+  } catch (e) {
     return null;
   }
   return null;
 }
 
 function clientCacheStorageKey(value, mode) {
-  const id = instagramPostCacheId(value);
+  var id = instagramPostCacheId(value);
   if (!id) return null;
-  return `reelsdl_post_${mode}_${id}`;
+  return 'reelsdl_post_' + mode + '_' + id;
 }
 
 function readClientPostCache(value, mode) {
-  const key = clientCacheStorageKey(value, mode);
+  var key = clientCacheStorageKey(value, mode);
   if (!key) return null;
   try {
-    const raw = sessionStorage.getItem(key);
+    var raw = sessionStorage.getItem(key);
     if (!raw) return null;
-    const entry = JSON.parse(raw);
+    var entry = JSON.parse(raw);
     if (!entry?.at || Date.now() - entry.at > CLIENT_CACHE_MS) return null;
     if (!Array.isArray(entry.result?.media) || !entry.result.media.length) return null;
     return entry.result;
-  } catch {
+  } catch (e) {
     return null;
   }
 }
 
 function writeClientPostCache(value, mode, result) {
-  const key = clientCacheStorageKey(value, mode);
+  var key = clientCacheStorageKey(value, mode);
   if (!key || !result?.media?.length) return;
   try {
-    sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), result }));
-  } catch {
+    sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), result: result }));
+  } catch (e) {
     /* ignore quota */
   }
 }
 
 function extractInstagramUrl(value) {
-  const text = String(value || '').trim();
+  var text = String(value || '').trim();
   if (!text) return '';
-  const parts = text.split(/(?=https?:\/\/)/i).map((part) => part.trim()).filter(Boolean);
+  var parts = text.split(/(?=https?:\/\/)/i).map(function(part) { return part.trim(); }).filter(Boolean);
   if (parts.length > 1) {
-    const urls = parts.filter((part) => looksLikeInstagramUrl(part));
+    var urls = parts.filter(function(part) { return looksLikeInstagramUrl(part); });
     if (urls.length) return urls[urls.length - 1];
   }
   return text;
@@ -465,9 +509,9 @@ function extractInstagramUrl(value) {
 
 function looksLikeInstagramUrl(value) {
   try {
-    const parsed = new URL(value.startsWith('http') ? value : `https://${value}`);
+    var parsed = new URL(value.startsWith('http') ? value : 'https://' + value);
     return /^(www\.)?instagram\.com$/i.test(parsed.hostname);
-  } catch {
+  } catch (e) {
     return /instagram\.com/i.test(value);
   }
 }
